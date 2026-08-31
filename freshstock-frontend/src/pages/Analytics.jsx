@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import WhatsAppAction from '../components/dashboard/WhatsAppAction';
 import { calculateDaysRemaining } from '../utils/dateFormats';
+import StatCard from '../components/dashboard/StatCard';
+import { Activity, Package, AlertTriangle } from 'lucide-react';
 
 const Analytics = () => {
   const [selectedProduct, setSelectedProduct] = useState('Tomatoes');
@@ -34,6 +36,13 @@ const Analytics = () => {
     <div className="p-8 space-y-8">
       <h2 className="text-2xl font-bold text-gray-800">Historical & Spoilage Analytics</h2>
       
+      {/* Analytics Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard title="Total Products Monitored" value="45 Items" icon={Activity} colorClass="blue" />
+        <StatCard title="Active In Stock" value="42 Items" icon={Package} colorClass="green" />
+        <StatCard title="Spoilage / Out of Stock" value="3 Items" icon={AlertTriangle} trend="Requires Action" isPositive={false} colorClass="red" />
+      </div>
+
       {/* Interactive Graph Section */}
       <div className="bg-white p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-gray-50">
         <div className="flex justify-between items-center mb-6">
