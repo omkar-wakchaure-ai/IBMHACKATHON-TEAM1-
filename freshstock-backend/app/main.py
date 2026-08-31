@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import router as api_v1_router
+from app.core.database import Base, engine
+from app.models.product import Product
+
+
+Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI(
@@ -9,6 +14,9 @@ app = FastAPI(
     description="Backend API for FreshStock",
     version="1.0.0",
 )
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 
 # Allow the Vite frontend to communicate with the backend

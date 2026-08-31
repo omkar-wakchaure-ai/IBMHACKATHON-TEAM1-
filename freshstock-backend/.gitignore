@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.env
+freshstock.db
+.pytest_cache/
