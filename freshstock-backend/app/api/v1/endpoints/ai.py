@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.models.product import Product as ProductModel
 
 from app.services.demand_prediction_service import predict_restock_need
+from app.services.inventory_risk_service import generate_inventory_risk_report
 
 from app.services.ml_prediction_service import (
     predict_demand,
@@ -112,3 +113,12 @@ def expiry_product_recommendation(
             product.quantity
         )
     }
+# ---------------------------------------------------------
+# INVENTORY RISK REPORT
+# ---------------------------------------------------------
+
+@router.get("/inventory-risk")
+def inventory_risk(
+    db: Session = Depends(get_db)
+):
+    return generate_inventory_risk_report(db)
