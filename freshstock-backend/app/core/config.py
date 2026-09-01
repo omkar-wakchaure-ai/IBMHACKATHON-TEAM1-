@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -17,7 +18,14 @@ class Settings(BaseSettings):
     IBM_API_KEY: str = os.getenv("IBM_API_KEY", "mock_ibm_key")
     IBM_PROJECT_ID: str = os.getenv("IBM_PROJECT_ID", "mock_project_id")
 
-    class Config:
-        env_file = ".env"
+    # IBM Watsonx credentials loaded from .env
+    WATSONX_API_KEY: Optional[str] = None
+    WATSONX_PROJECT_ID: Optional[str] = None
+    WATSONX_URL: Optional[str] = None
+
+    model_config = {
+        "env_file": ".env",
+        "extra": "ignore",
+    }
 
 settings = Settings()
