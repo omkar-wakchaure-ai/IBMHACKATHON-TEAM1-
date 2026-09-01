@@ -1,20 +1,50 @@
+import os
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 
 
-def predict_demand():
-    # Historical sales data
-    data = {
-        "day": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        "quantity_sold": [5, 7, 6, 8, 10, 9, 12, 11, 13, 15],
-    }
+# ---------------------------------------------------------
+# LOAD HISTORICAL SALES DATA
+# ---------------------------------------------------------
 
-    df = pd.DataFrame(data)
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
+)
+
+SALES_FILE = os.path.join(
+    BASE_DIR,
+    "data",
+    "historical_sales.csv"
+)
+
+
+# ---------------------------------------------------------
+# PREDICT DEMAND FOR A PRODUCT
+# ---------------------------------------------------------
+
+def predict_demand(product_id: int = None):
+
+    df = pd.read_csv(SALES_FILE)
+
+    if product_id is not None:
+        df = df[df["product_id"] == product_id]
+
+    if df.empty:
+        return {
+            "next_day": 1,
+            "predicted_demand": 0.0
+        }
+
+    # Create sequential day numbers for the ML model
+    df = df.copy()
+    df["day"] = range(1, len(df) + 1)
 
     X = df[["day"]]
     y = df["quantity_sold"]
 
-    # Train ML model
+    # Train Random Forest model
     model = RandomForestRegressor(
         n_estimators=100,
         random_state=42
@@ -22,25 +52,31 @@ def predict_demand():
 
     model.fit(X, y)
 
-    # Predict next-day demand
-    next_day = pd.DataFrame({
-        "day": [11]
+    # Predict next day
+    next_day = len(df) + 1
+
+    next_day_data = pd.DataFrame({
+        "day": [next_day]
     })
 
-    prediction = model.predict(next_day)[0]
-
-    predicted_demand = round(float(prediction), 2)
+    prediction = model.predict(next_day_data)[0]
 
     return {
-        "next_day": 11,
-        "predicted_demand": predicted_demand
+        "next_day": next_day,
+        "predicted_demand": round(float(prediction), 2)
     }
 
+
+# ---------------------------------------------------------
+# CALCULATE RESTOCK QUANTITY
+# ---------------------------------------------------------
 
 def calculate_restock_quantity(
     current_quantity: int,
     predicted_demand: float
 ):
+
+    # Keep 2 days of predicted demand as target stock
     recommended_stock = predicted_demand * 2
 
     restock_quantity = max(
@@ -50,8 +86,10 @@ def calculate_restock_quantity(
 
     if restock_quantity == 0:
         recommendation = "NO RESTOCK REQUIRED"
+
     elif restock_quantity <= 10:
         recommendation = "RESTOCK SMALL QUANTITY"
+
     else:
         recommendation = "RESTOCK NOW"
 
@@ -62,17 +100,25 @@ def calculate_restock_quantity(
         "restock_quantity": restock_quantity,
         "recommendation": recommendation
     }
+
+
+# ---------------------------------------------------------
+# INVENTORY RECOMMENDATIONS FOR ALL PRODUCTS
+# ---------------------------------------------------------
+
 def generate_inventory_recommendations(db):
+
     from app.models.product import Product as ProductModel
 
     products = db.query(ProductModel).all()
 
-    demand_result = predict_demand()
-    predicted_demand = demand_result["predicted_demand"]
-
     recommendations = []
 
     for product in products:
+
+        demand_result = predict_demand(product.id)
+
+        predicted_demand = demand_result["predicted_demand"]
 
         result = calculate_restock_quantity(
             product.quantity,
@@ -92,6 +138,11 @@ def generate_inventory_recommendations(db):
 
     return recommendations
 
+
+# ---------------------------------------------------------
+# EXPIRY RECOMMENDATION
+# ---------------------------------------------------------
+
 from datetime import date
 
 
@@ -99,6 +150,7 @@ def expiry_recommendation(
     expiry_date,
     current_quantity: int
 ):
+
     if expiry_date is None:
         return {
             "expiry_status": "NO EXPIRY DATE",
@@ -106,21 +158,28 @@ def expiry_recommendation(
         }
 
     today = date.today()
-    days_remaining = (expiry_date - today).days
+
+    days_remaining = (
+        expiry_date - today
+    ).days
 
     if days_remaining < 0:
+
         recommendation = "EXPIRED - REMOVE FROM STOCK"
         status = "EXPIRED"
 
     elif days_remaining <= 3:
+
         recommendation = "URGENT DISCOUNT / SELL NOW"
         status = "CRITICAL"
 
     elif days_remaining <= 7:
+
         recommendation = "DISCOUNT / SELL SOON"
         status = "EXPIRING SOON"
 
     else:
+
         recommendation = "NORMAL INVENTORY"
         status = "SAFE"
 
