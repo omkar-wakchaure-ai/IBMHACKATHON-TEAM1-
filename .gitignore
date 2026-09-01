@@ -1,9 +1,10 @@
+# Dataset
+data/
+
+# Python
 .venv/
-venv/
 __pycache__/
 *.pyc
-.env
-.env.*
 
-node_modules/
-dist/
+# Environment secrets
+.env
