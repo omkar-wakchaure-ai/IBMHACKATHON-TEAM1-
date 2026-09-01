@@ -1,20 +1,15 @@
-from pydantic import BaseModel
 from datetime import date
 
-class ProductBase(BaseModel):
-    name: str
-    supplier: str
-    manufacturing_date: date
-    expiry_date: date
-    quantity: float
-    unit_price: float
+from pydantic import BaseModel, Field
 
-class ProductCreate(ProductBase):
-    pass
 
-class ProductResponse(ProductBase):
+class ProductCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    category: str = Field(..., min_length=1)
+    quantity: int = Field(..., ge=0)
+    expiry_date: date | None = None
+    supplier_id: str | None = None
+
+
+class Product(ProductCreate):
     id: int
-    freshness_score: float
-    
-    class Config:
-        from_attributes = True

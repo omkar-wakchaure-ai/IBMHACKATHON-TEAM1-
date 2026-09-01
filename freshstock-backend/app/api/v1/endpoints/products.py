@@ -1,54 +1,147 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import date
-from typing import List
-from pydantic import BaseModel
 
 from app.core.database import get_db
-from app.models.product import Product
+from app.schemas.product import Product, ProductCreate
+from app.services.inventory_service import (
+    get_all_products,
+    get_product,
+    create_product,
+    update_product,
+    delete_product,
+    get_low_stock_products,
+    get_expiring_products,
+)
 
-router = APIRouter()
 
-# Pydantic schemas for request validation
-class ProductCreate(BaseModel):
-    name: str
-    supplier: str
-    manufacturing_date: date
-    expiry_date: date
-    quantity: float
-    unit_price: float
+router = APIRouter(
+    prefix="/products",
+    tags=["Products"],
+)
 
-class ProductResponse(ProductCreate):
-    id: int
-    freshness_score: float
-    
-    class Config:
-        from_attributes = True # updated for Pydantic v2
 
-@router.post("/", response_model=ProductResponse)
-def ingest_product(product: ProductCreate, db: Session = Depends(get_db)):
-    # Calculate initial freshness score dynamically
-    total_shelf_life = (product.expiry_date - product.manufacturing_date).days
-    days_left = (product.expiry_date - date.today()).days
-    
-    freshness = 100.0
-    if total_shelf_life > 0:
-        freshness = max(0.0, (days_left / total_shelf_life) * 100)
+# ---------------------------------------------------------
+# GET ALL PRODUCTS
+# ---------------------------------------------------------
 
-    db_product = Product(
-        name=product.name,
-        supplier=product.supplier,
-        manufacturing_date=product.manufacturing_date,
-        expiry_date=product.expiry_date,
-        quantity=product.quantity,
-        unit_price=product.unit_price,
-        freshness_score=freshness
+@router.get("/", response_model=list[Product])
+def get_products(db: Session = Depends(get_db)):
+    return get_all_products(db)
+
+
+# ---------------------------------------------------------
+# GET SINGLE PRODUCT
+# ---------------------------------------------------------
+
+@router.get("/{product_id}", response_model=Product)
+def get_single_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    product = get_product(db, product_id)
+
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    return product
+
+
+# ---------------------------------------------------------
+# CREATE PRODUCT
+# ---------------------------------------------------------
+
+@router.post(
+    "/",
+    response_model=Product,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_product(
+    product_data: ProductCreate,
+    db: Session = Depends(get_db),
+):
+    return create_product(db, product_data)
+
+
+# ---------------------------------------------------------
+# UPDATE PRODUCT
+# ---------------------------------------------------------
+
+@router.put(
+    "/{product_id}",
+    response_model=Product,
+)
+def update_product_endpoint(
+    product_id: int,
+    product_data: ProductCreate,
+    db: Session = Depends(get_db),
+):
+    product = update_product(
+        db,
+        product_id,
+        product_data,
     )
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
 
-@router.get("/", response_model=List[ProductResponse])
-def get_all_products(db: Session = Depends(get_db)):
-    return db.query(Product).all()
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    return product
+
+
+# ---------------------------------------------------------
+# DELETE PRODUCT
+# ---------------------------------------------------------
+
+@router.delete("/{product_id}")
+def remove_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+):
+    deleted = delete_product(
+        db,
+        product_id,
+    )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    return {
+        "message": "Product deleted successfully",
+        "product_id": product_id,
+    }
+
+
+# ---------------------------------------------------------
+# LOW STOCK PRODUCTS
+# ---------------------------------------------------------
+
+@router.get(
+    "/alerts/low-stock",
+    response_model=list[Product],
+)
+def low_stock_products(
+    db: Session = Depends(get_db),
+):
+    return get_low_stock_products(db)
+
+
+# ---------------------------------------------------------
+# EXPIRING PRODUCTS
+# ---------------------------------------------------------
+
+@router.get(
+    "/alerts/expiring",
+    response_model=list[Product],
+)
+def expiring_products(
+    db: Session = Depends(get_db),
+):
+    return get_expiring_products(db)
