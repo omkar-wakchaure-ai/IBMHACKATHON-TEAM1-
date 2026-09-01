@@ -1,0 +1,4 @@
+product_id,product_name,category,current_quantity,expiry_date
+1,Milk,Dairy,5,2026-09-05
+2,Apple,Fruits,50,2026-09-15
+3,Bread,Bakery,8,2026-09-04
